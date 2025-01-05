@@ -55,7 +55,7 @@ def generate_launch_description():
                 plugin='hdl_localization::GlobalmapServerNodelet',
                 name='GlobalmapServerNodelet',
                 parameters=[
-                    {'globalmap_pcd': '/home/socoolinsu/hdl_ws/install/hdl_localization/share/hdl_localization/data/test.pcd'},
+                    {'globalmap_pcd': '/home/socoolinsu/aaaa/install/hdl_localization/share/hdl_localization/data/test.pcd'},
                     {'convert_utm_to_local': True},
                     {'downsample_resolution': 0.1}]),
             ComposableNode(
@@ -75,7 +75,7 @@ def generate_launch_description():
                     {'enable_robot_odometry_prediction': enable_robot_odometry_prediction},
                     {'robot_odom_frame_id': robot_odom_frame_id},
                     # <!-- available reg_methods: NDT_OMP, NDT_CUDA_P2D, NDT_CUDA_D2D-->
-                    {'reg_method': 'NDT_OMP'},
+                    {'reg_method': 'NDT_CUDA_P2D'},
                     {'ndt_neighbor_search_method': 'DIRECT7'},
                     {'ndt_num_thread': 8},
                     {'ndt_neighbor_search_radius': 2.0},

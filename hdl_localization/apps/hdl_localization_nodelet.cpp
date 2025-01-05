@@ -127,7 +127,7 @@ private:
       return ndt;
     } else if(reg_method.find("NDT_CUDA") != std::string::npos) {
       RCLCPP_INFO(get_logger(), "NDT_CUDA is selected");
-      pcl::shared_ptr<fast_gicp::NDTCuda<PointT, PointT>> ndt(new fast_gicp::NDTCuda<PointT, PointT>);
+      std::shared_ptr<fast_gicp::NDTCuda<PointT, PointT>> ndt(new fast_gicp::NDTCuda<PointT, PointT>);
       ndt->setResolution(ndt_resolution);
 
       if(reg_method.find("D2D") != std::string::npos) {
