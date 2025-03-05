@@ -1,4 +1,5 @@
 #############################################################################
+import os
 
 from launch import LaunchDescription
 from launch.substitutions import LaunchConfiguration
@@ -7,6 +8,7 @@ import launch_ros.actions
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
+from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
@@ -24,7 +26,7 @@ def generate_launch_description():
     use_imu = LaunchConfiguration('use_imu', default='false')
     invert_imu_acc = LaunchConfiguration('invert_imu_acc', default='false')
     invert_imu_gyro = LaunchConfiguration('invert_imu_gyro', default='false')
-    use_global_localization = LaunchConfiguration('use_global_localization', default='false')
+    use_global_localization = LaunchConfiguration('use_global_localization', default='true')
     imu_topic = LaunchConfiguration('imu_topic', default='/livox/imu')
     enable_robot_odometry_prediction = LaunchConfiguration('enable_robot_odometry_prediction', default='false')
     robot_odom_frame_id = LaunchConfiguration('robot_odom_frame_id', default='odom')
@@ -33,16 +35,21 @@ def generate_launch_description():
     # include hdl_global_localization launch file
     # hdl_global_localization_launch = IncludeLaunchDescription(
     #     PythonLaunchDescriptionSource([get_package_share_directory('hdl_global_localization'), '/launch/hdl_global_localization.launch.py']),
-    #     # condition=IfCondition(use_global_localization),
-    #
+    #     condition=IfCondition(use_global_localization),
+    # )
+    
+    
     # odom
     lidar_tf = Node(
         name='lidar_tf',
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments=['0.0', '0.0', '0.0', '0', '0',
-                   '0', '1', 'odom', 'velodyne']
+                   '0', '1', 'odom', 'base_link']
     )
+
+    #globalmappath
+    globalmap_pcd_path = os.path.join(get_package_share_directory('hdl_localization'), 'data', 'test.pcd')
 
     container = ComposableNodeContainer(
         name='container',
@@ -55,7 +62,7 @@ def generate_launch_description():
                 plugin='hdl_localization::GlobalmapServerNodelet',
                 name='GlobalmapServerNodelet',
                 parameters=[
-                    {'globalmap_pcd': '/home/ddalbae/muin_ws/install/hdl_localization/share/hdl_localization/data/test.pcd'},
+                    {'globalmap_pcd': globalmap_pcd_path},
                     {'convert_utm_to_local': True},
                     {'downsample_resolution': 0.1}]),
             ComposableNode(

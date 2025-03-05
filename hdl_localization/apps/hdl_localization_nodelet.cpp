@@ -80,8 +80,8 @@ public:
     use_global_localization = declare_parameter<bool>("use_global_localization", true);
     if (use_global_localization) {
       RCLCPP_INFO_STREAM(get_logger(), "wait for global localization services");
-      set_global_map_service = create_client<hdl_global_localization::srv::SetGlobalMap>("/hdl_global_localization/set_global_map");
-      query_global_localization_service = create_client<hdl_global_localization::srv::QueryGlobalLocalization>("/hdl_global_localization/query");
+      set_global_map_service = create_client<hdl_global_localization::srv::SetGlobalMap>("set_global_map");
+      query_global_localization_service = create_client<hdl_global_localization::srv::QueryGlobalLocalization>("query");
       while (!set_global_map_service->wait_for_service(std::chrono::milliseconds(1000))) {
         RCLCPP_WARN(get_logger(), "Waiting for SetGlobalMap service");
         if (!rclcpp::ok()) {
@@ -329,12 +329,18 @@ private:
       RCLCPP_INFO(get_logger(), "set globalmap for global localization!");
       auto req  = std::make_shared<hdl_global_localization::srv::SetGlobalMap::Request>();
       pcl::toROSMsg(*globalmap, req->global_map);
-      auto result = set_global_map_service->async_send_request(req);
-      if (rclcpp::spin_until_future_complete(rclcpp::Node::SharedPtr(this), result) != rclcpp::FutureReturnCode::SUCCESS) {
-        RCLCPP_ERROR(get_logger(), "Failed to call SetGlobalMap service");
-      }
+      auto result = set_global_map_service->async_send_request(req, std::bind(&HdlLocalizationNodelet::globalmap_respond_callback, this, std::placeholders::_1));
     }
   }
+
+  void globalmap_respond_callback(rclcpp::Client<hdl_global_localization::srv::SetGlobalMap>::SharedFuture future) {
+    try {
+        auto response = future.get();
+        RCLCPP_INFO(this->get_logger(), "Service response:");
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Service call failed: %s", e.what());
+    }
+}
 
   /**
    * @brief perform global localization to relocalize the sensor position
@@ -354,43 +360,45 @@ private:
     pcl::toROSMsg(*scan, query_req->cloud);
     query_req->max_num_candidates = 1;
 
-    auto query_result_future = query_global_localization_service->async_send_request(query_req);
-    if (rclcpp::spin_until_future_complete(rclcpp::Node::SharedPtr(this), query_result_future) != rclcpp::FutureReturnCode::SUCCESS) {
-      RCLCPP_ERROR(get_logger(), "Failed to call QueryGlobalLocalization service");
-      return false;
-    }
-    auto query_result = query_result_future.get();
+    auto query_result_future = query_global_localization_service->async_send_request(query_req, std::bind(&HdlLocalizationNodelet::relocalize_respond_callback, this, std::placeholders::_1));
+  }
 
-    if (query_result->poses.empty()) {
+  void relocalize_respond_callback(rclcpp::Client<hdl_global_localization::srv::QueryGlobalLocalization>::SharedFuture query_result_future) {
+    try {
+      auto query_result = query_result_future.get();
+      RCLCPP_INFO(this->get_logger(), "relocalize response:");
+      
+      if (query_result->poses.empty()) {
       RCLCPP_ERROR(get_logger(), "QueryGlobalLocalization returned empty poses array");
-      return false;
+      return;
+      }
+
+      const auto& result = query_result->poses[0];
+
+      RCLCPP_INFO_STREAM(get_logger(), "--- Global localization result ---");
+      RCLCPP_INFO_STREAM(get_logger(), "Trans :" << result.position.x << " " << result.position.y << " " << result.position.z);
+      RCLCPP_INFO_STREAM(get_logger(), "Quat  :" << result.orientation.x << " " << result.orientation.y << " " << result.orientation.z << " " << result.orientation.w);
+      RCLCPP_INFO_STREAM(get_logger(), "Error :" << query_result->errors[0]);
+      RCLCPP_INFO_STREAM(get_logger(), "Inlier:" << query_result->inlier_fractions[0]);
+
+      Eigen::Isometry3f pose = Eigen::Isometry3f::Identity();
+      pose.linear() = Eigen::Quaternionf(result.orientation.w, result.orientation.x, result.orientation.y, result.orientation.z).toRotationMatrix();
+      pose.translation() = Eigen::Vector3f(result.position.x, result.position.y, result.position.z);
+      pose = pose * delta_estimater->estimated_delta();
+
+      std::lock_guard<std::mutex> lock(pose_estimator_mutex);
+      pose_estimator.reset(new hdl_localization::PoseEstimator(
+        registration,
+        get_clock()->now(),
+        pose.translation(),
+        Eigen::Quaternionf(pose.linear()),
+        cool_time_duration));
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(this->get_logger(), "Service call failed: %s", e.what());
     }
-
-    const auto& result = query_result->poses[0];
-
-    RCLCPP_INFO_STREAM(get_logger(), "--- Global localization result ---");
-    RCLCPP_INFO_STREAM(get_logger(), "Trans :" << result.position.x << " " << result.position.y << " " << result.position.z);
-    RCLCPP_INFO_STREAM(get_logger(), "Quat  :" << result.orientation.x << " " << result.orientation.y << " " << result.orientation.z << " " << result.orientation.w);
-    RCLCPP_INFO_STREAM(get_logger(), "Error :" << query_result->errors[0]);
-    RCLCPP_INFO_STREAM(get_logger(), "Inlier:" << query_result->inlier_fractions[0]);
-
-    Eigen::Isometry3f pose = Eigen::Isometry3f::Identity();
-    pose.linear() = Eigen::Quaternionf(result.orientation.w, result.orientation.x, result.orientation.y, result.orientation.z).toRotationMatrix();
-    pose.translation() = Eigen::Vector3f(result.position.x, result.position.y, result.position.z);
-    pose = pose * delta_estimater->estimated_delta();
-
-    std::lock_guard<std::mutex> lock(pose_estimator_mutex);
-    pose_estimator.reset(new hdl_localization::PoseEstimator(
-      registration,
-      get_clock()->now(),
-      pose.translation(),
-      Eigen::Quaternionf(pose.linear()),
-      cool_time_duration));
 
     relocalizing = false;
-
-    return true;
-  }
+}
 
   /**
    * @brief callback for initial pose input ("2D Pose Estimate" on rviz)
