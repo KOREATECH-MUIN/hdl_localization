@@ -125,7 +125,7 @@ rclcpp_components_register_node(
 )
 
 
-install(DIRECTORY launch rviz param
+install(DIRECTORY launch rviz param data
   DESTINATION share/${PROJECT_NAME}/
 )
 

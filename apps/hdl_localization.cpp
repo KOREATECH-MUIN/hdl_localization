@@ -96,12 +96,15 @@ private:
     std::string ndt_neighbor_search_method = this->get_parameter("ndt_neighbor_search_method").as_string();
     double ndt_neighbor_search_radius = this->get_parameter("ndt_neighbor_search_radius").as_double();
     double ndt_resolution = this->get_parameter("ndt_resolution").as_double();
+    int ndt_threads = this->get_parameter("ndt_num_thread").as_int();
 
     if(reg_method == "NDT_OMP") {
       RCLCPP_INFO(this->get_logger(), "NDT_OMP is selected");
       pclomp::NormalDistributionsTransform<PointT, PointT>::Ptr ndt(new pclomp::NormalDistributionsTransform<PointT, PointT>());
       ndt->setTransformationEpsilon(0.01);
       ndt->setResolution(ndt_resolution);
+      RCLCPP_INFO(this->get_logger(), "Number of Threads is : %d", ndt_threads);
+      ndt->setNumThreads(ndt_threads);
       if (ndt_neighbor_search_method == "DIRECT1") {
         RCLCPP_INFO(this->get_logger(), "search_method DIRECT1 is selected");
         ndt->setNeighborhoodSearchMethod(pclomp::DIRECT1);
@@ -154,6 +157,7 @@ private:
     this->declare_parameter("ndt_neighbor_search_method", "DIRECT7");
     this->declare_parameter("ndt_neighbor_search_radius", 2.0);
     this->declare_parameter("ndt_resolution", 1.0);
+    this->declare_parameter("ndt_num_thread", 1);
     this->declare_parameter("downsample_resolution", 0.1);
     this->declare_parameter("specify_init_pose", true);
     this->declare_parameter("init_pos_x", 0.0);
@@ -262,7 +266,7 @@ private:
         const auto& gyro = imu_iter->angular_velocity;
         double acc_sign = invert_acc ? -1.0 : 1.0;
         double gyro_sign = invert_gyro ? -1.0 : 1.0;
-        pose_estimator->predict(imu_stamp, acc_sign * Eigen::Vector3f(acc.x, acc.y, acc.z), gyro_sign * Eigen::Vector3f(gyro.x, gyro.y, gyro.z));
+        pose_estimator->predict(imu_stamp, 9.80665 * acc_sign * Eigen::Vector3f(acc.x, acc.y, acc.z), gyro_sign * Eigen::Vector3f(gyro.x, gyro.y, gyro.z));
       }
       imu_data.erase(imu_data.begin(), imu_iter);
     }
