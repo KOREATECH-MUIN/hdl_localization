@@ -54,7 +54,7 @@ def generate_launch_description():
         name='robot2lidar_tf',
         package='tf2_ros',
         executable='static_transform_publisher',
-        arguments=['0.115', '0.0', '0.16', '0', '0',
+        arguments=['0.115', '0.0', '0.365', '0', '0',
                    '0', '1', 'base_link', 'livox_frame']
     )
 
