@@ -71,7 +71,7 @@ public:
     globalmap_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("/globalmap", 1, std::bind(&HdlLocalization::globalmap_callback, this, _1));
     initialpose_sub = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 8, std::bind(&HdlLocalization::initialpose_callback, this, _1));
 
-    pose_pub = this->create_publisher<nav_msgs::msg::Odometry>("/odom", 5);
+    pose_pub = this->create_publisher<nav_msgs::msg::Odometry>("/hdl_odom", 5);
     aligned_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/aligned_points", 5);
     status_pub = this->create_publisher<hdl_localization::msg::ScanMatchingStatus>("/status", 5);
 

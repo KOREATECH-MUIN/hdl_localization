@@ -26,7 +26,7 @@ def generate_launch_description():
     use_imu = LaunchConfiguration('use_imu', default='false')
     invert_imu_acc = LaunchConfiguration('invert_imu_acc', default='false')
     invert_imu_gyro = LaunchConfiguration('invert_imu_gyro', default='false')
-    use_global_localization = LaunchConfiguration('use_global_localization', default='true')
+    use_global_localization = LaunchConfiguration('use_global_localization', default='false')
     imu_topic = LaunchConfiguration('imu_topic', default='/livox/imu')
     enable_robot_odometry_prediction = LaunchConfiguration('enable_robot_odometry_prediction', default='false')
     robot_odom_frame_id = LaunchConfiguration('robot_odom_frame_id', default='odom')
@@ -76,7 +76,8 @@ def generate_launch_description():
                 parameters=[
                     {'globalmap_pcd': globalmap_pcd_path},
                     {'convert_utm_to_local': True},
-                    {'downsample_resolution': 0.2}]),
+                    # 실내 : 0.1 // 실외 : 0.2 이상 가능
+                    {'downsample_resolution': 0.1}]),
             ComposableNode(
                 package='hdl_localization',
                 plugin='hdl_localization::HdlLocalization',
@@ -97,7 +98,7 @@ def generate_launch_description():
                     {'ndt_num_thread': 8},
                     {'ndt_neighbor_search_radius': 1.0},
                     {'ndt_resolution': 0.5},
-                    {'downsample_resolution': 0.2},
+                    {'downsample_resolution': 0.1},
                     {'specify_init_pose': True},
                     {'init_pos_x': 0.0},
                     {'init_pos_y': 0.0},
